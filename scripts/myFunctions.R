@@ -1,7 +1,13 @@
-SaccDFtoList <- function(saccDF, trl, alg='eyelink')
-{
-	# take samples and split into a list of saccades
+library(dplyr)
 
+SaccDFtoList <- function(saccDF, alg='eyelink', fl)
+{
+	# first get observer number
+	m <- regexpr('[0-9]+', fl)
+	saccDF$Person <- regmatches(fl, m)
+	rm(m)
+
+	# take samples and split into a list of saccades
 	if (alg=='eyelink'){
 		sacBoundaries  <- which(saccDF$SacFlagEyeLink[1:(nrow(saccDF)-1)]!=saccDF$SacFlagEyeLink[2:nrow(saccDF)])
 	} else {
@@ -15,24 +21,34 @@ SaccDFtoList <- function(saccDF, trl, alg='eyelink')
 	}
 
 	# now get extract saccade
-	saccDF <- select(saccDF, SampleTime, X, Y)
+	saccDF <- select(saccDF, Person, TrialIndex, SampleTime, X, Y)
 	sacList <- vector('list', length(sacBoundaries)/2)
 
-	saccDF$saccNumber <- 0
-	saccDF$trlNumber  <- 0
-	saccCtr <- 0
+	saccDF$SaccNumber <- 0
 
+	saccCtr <- 0 # overall saccade coutner
+	saccN   <- 0 # counts saccades per trial
+	currentTrl <- 0;
 	for (ii in seq(1, length(sacBoundaries), 2))
 	{
 		saccCtr <- saccCtr + 1
 		idx <- (sacBoundaries[ii]+1):sacBoundaries[ii+1]
-		saccDF$saccNumber[idx] <- saccCtr
-		saccDF$trlNumber[idx]  <- trl
+
+		# check to see if we're moving onto a new trial!
+		if (saccDF$TrialIndex[idx[1]] != currentTrl)
+		{
+			# new trial! update currentTrl and reset saccN
+			currentTrl <- saccDF$TrialIndex[idx[1]]	
+			saccN <- 0
+		}
+		saccN <- saccN + 1
+
+		saccDF$SaccNumber[idx] <- saccN
 		sacList[[saccCtr]] <- rbind(saccDF[(sacBoundaries[ii]+1):sacBoundaries[ii+1],])
 		row.names(sacList[[saccCtr]]) = NULL
 	}
 
-	names(sacList) <- paste("trl", trl, "-sacc", 1:length(sacList), sep="")
+	# names(sacList) <- paste("trl", trl, "-sacc", 1:length(sacList), sep="")
 	return(sacList)
 }
 
@@ -88,11 +104,32 @@ GetSaccadeStatistics <- function(saccade)
 	return(list(x1=x1, y1=y1, r=r, theta=theta, nSample=nSamples, saccDur=saccDur))
 }
 
+
+CleanData <- function(saccades, duratations)
+{
+	# remove saccades for which X or Y was outside of image
+	idx <- sapply(saccades, function(sacc){max((abs(sacc$X)>1024)|(abs(sacc$Y)>768))})
+	idx <- which(idx==1)
+	saccades  <- saccades[-idx]
+	durations <- durations[-idx]
+	print('***************************************************************')
+	print(paste("removed", length(idx), "saccades for falling outside of image boundary"))
+
+	# remove saccades that take place after a really long fixation duration > 2secs
+	idx <- which(durations>2000)
+	saccades <- saccades[-idx]
+	durations <- durations[-idx]
+	print(paste("removed", length(idx), "saccades with preceeding fixation duration >2000ms"))
+	print('***************************************************************')
+	return(list(saccades, durations))
+
+}
+
 NormaliseSaccade <- function(saccade)
 {
 	# first set saccade start point at (0, 0)
 	x <- saccade$X - saccade$X[1]
-	y <- saccade$Y -saccade$Y[1]
+	y <- saccade$Y - saccade$Y[1]
 
 	# now rotate so endpoint lands on (x, 0)
 	theta = atan2(y[nrow(saccade)], x[nrow(saccade)])
@@ -109,7 +146,7 @@ NormaliseSaccade <- function(saccade)
 		yn <- -yn
 	}
 	# output!!
-	saccade[,2:3] = cbind(xn, yn)
+	saccade[,3:4] = cbind(xn, yn)
 	return(saccade)
 }
 
