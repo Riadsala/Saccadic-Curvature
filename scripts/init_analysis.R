@@ -5,10 +5,8 @@ source("myFunctions.R")
 
 alg <- 'eyelink'
 
-
 # read in data
 files <- dir("../data/")
-
 
 saccades  <- vector('list', length(files))
 durations <- vector('list', length(files))
@@ -36,16 +34,17 @@ durations <- output[[2]]
 rm(output)
 
 # get basic saccade statistics
-saccStats <- sapply(saccades, GetSaccadeStatistics)
-saccStats <- as.data.frame(t(saccStats))
-saccStats$fixDur = durations
-rm(fixDur)
+saccStats <- lapply(saccades, FUN=GetSaccadeStatistics)
+saccStats <- do.call(rbind.data.frame, saccStats)
+saccStats$prevFixDur <- durations
+rm(durations)
 
-
-# normalise saccades 
+# normalise saccades to [-1,0] -> [1,0]
 saccadesNormalised = lapply(saccades, NormaliseSaccade)
-names(saccadesNormalised) <- 1:length(saccadesNormalised)
-sacDF <- do.call(rbind.data.frame, saccadesNormalised)
+# names(saccadesNormalised) <- 1:length(saccadesNormalised)
+saccDF <- do.call(rbind.data.frame, saccadesNormalised)
+rm(saccades, saccadesNormalised)
+
 
 #get curvature statistics
 curve <-sapply(saccadesNormalised, FUN=CurvatureStats, USE.NAMES = FALSE)

@@ -60,7 +60,6 @@ GetFixDur <- function(saccDF, trl, alg='eyelink')
 		sacBoundaries  <- which(saccDF$SacFlagEyeLink[1:(nrow(saccDF)-1)]!=saccDF$SacFlagEyeLink[2:nrow(saccDF)])
 	} else {
 		sacBoundaries  <- which(saccDF$SacFlagNystrom[1:(nrow(saccDF)-1)]!=saccDF$SacFlagNystrom[2:nrow(saccDF)])
-
 	}
 
 	# if trial ends during a saccade, remove that saccade
@@ -84,6 +83,34 @@ GetFixDur <- function(saccDF, trl, alg='eyelink')
 	return(fixDur)
 }
 
+CleanData <- function(saccades, duratations)
+{
+	# remove saccades for which X or Y was outside of image
+	idx <- sapply(saccades, function(sacc){max((abs(sacc$X)>1024)|(abs(sacc$Y)>768))})
+	idx <- which(idx==1)
+	saccades  <- saccades[-idx]
+	durations <- durations[-idx]
+	print('***************************************************************')
+	print(paste("removed", length(idx), "saccades for falling outside of image boundary"))
+
+	# remove saccades that take place after a really long fixation duration > 2secs
+	idx <- which(durations>2000)
+	saccades <- saccades[-idx]
+	durations <- durations[-idx]
+	print(paste("removed", length(idx), "saccades with preceeding fixation duration >2000ms"))
+	
+	# remove saccades with less than 5 samples
+	idx <- sapply(saccades, function(x){nrow(x)<5})
+	idx <- which(idx)
+	saccades <- saccades[-idx]
+	durations <- durations[-idx]
+	print(paste("removed", length(idx), "saccades with less than 5 samples"))
+	print('***************************************************************')
+
+	return(list(saccades, durations))
+
+}
+
 GetSaccadeStatistics <- function(saccade)
 {
 	x1 <- saccade$X[1]
@@ -101,28 +128,14 @@ GetSaccadeStatistics <- function(saccade)
 
 	nSamples = nrow(saccade)
 	saccDur = t2 - t1
-	return(list(x1=x1, y1=y1, r=r, theta=theta, nSample=nSamples, saccDur=saccDur))
-}
-
-
-CleanData <- function(saccades, duratations)
-{
-	# remove saccades for which X or Y was outside of image
-	idx <- sapply(saccades, function(sacc){max((abs(sacc$X)>1024)|(abs(sacc$Y)>768))})
-	idx <- which(idx==1)
-	saccades  <- saccades[-idx]
-	durations <- durations[-idx]
-	print('***************************************************************')
-	print(paste("removed", length(idx), "saccades for falling outside of image boundary"))
-
-	# remove saccades that take place after a really long fixation duration > 2secs
-	idx <- which(durations>2000)
-	saccades <- saccades[-idx]
-	durations <- durations[-idx]
-	print(paste("removed", length(idx), "saccades with preceeding fixation duration >2000ms"))
-	print('***************************************************************')
-	return(list(saccades, durations))
-
+	return(data.frame(
+		person = saccade$Person[1],
+		trlNum = saccade$TrialIndex[1],
+		saccNum = saccade$SaccNumber[1],
+		x1=x1, y1=y1, 
+		r=r, theta=theta, 
+		nSample=nSamples, 
+		saccDur=saccDur))
 }
 
 NormaliseSaccade <- function(saccade)
@@ -146,7 +159,8 @@ NormaliseSaccade <- function(saccade)
 		yn <- -yn
 	}
 	# output!!
-	saccade[,3:4] = cbind(xn, yn)
+	saccade$X <- xn
+	saccade$Y <- yn
 	return(saccade)
 }
 
