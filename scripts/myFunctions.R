@@ -1,6 +1,6 @@
 library(dplyr)
 
-SaccDFtoList <- function(saccDF, alg='eyelink', fl)
+SaccDFtoList <- function(saccDF, alg, fl)
 {
 	# first get observer number
 	m <- regexpr('[0-9]+', fl)
@@ -52,10 +52,9 @@ SaccDFtoList <- function(saccDF, alg='eyelink', fl)
 	return(sacList)
 }
 
-GetFixDur <- function(saccDF, trl, alg='eyelink')
+GetFixDur <- function(saccDF, alg)
 {
 	# take samples and split into a list of saccades
-
 	if (alg=='eyelink'){
 		sacBoundaries  <- which(saccDF$SacFlagEyeLink[1:(nrow(saccDF)-1)]!=saccDF$SacFlagEyeLink[2:nrow(saccDF)])
 	} else {
@@ -70,8 +69,7 @@ GetFixDur <- function(saccDF, trl, alg='eyelink')
 
 	# first, get preceeding fixation duration
 	fixDur <- vector('numeric', length(sacBoundaries)/2)
-	fixCtr <- 1
-	fixDur[1] = NaN # first fixation duration is unreliable
+	fixCtr <- 0
 	for (ii in seq(1, length(sacBoundaries)-2, 2))
 	{
 		fixCtr <- fixCtr + 1
@@ -85,12 +83,20 @@ GetFixDur <- function(saccDF, trl, alg='eyelink')
 
 CleanData <- function(saccades, duratations)
 {
+	print('***************************************************************')
+
+	# remove 1st saccades
+	idx <- which(sapply(saccades, function(x){unique(x$SaccNumber)})==1)
+	saccades <- saccades[-idx]
+	durations <- durations[-idx]
+	print(paste("removed", length(idx), "first saccades"))
+
 	# remove saccades for which X or Y was outside of image
-	idx <- sapply(saccades, function(sacc){max((abs(sacc$X)>1024)|(abs(sacc$Y)>768))})
+	idx <- sapply(saccades, 
+		function(sacc){max((sacc$X>1024)|(sacc$Y>768)|(sacc$X<0)|(sacc$Y<0))})
 	idx <- which(idx==1)
 	saccades  <- saccades[-idx]
 	durations <- durations[-idx]
-	print('***************************************************************')
 	print(paste("removed", length(idx), "saccades for falling outside of image boundary"))
 
 	# remove saccades that take place after a really long fixation duration > 2secs
@@ -98,12 +104,14 @@ CleanData <- function(saccades, duratations)
 	saccades <- saccades[-idx]
 	durations <- durations[-idx]
 	print(paste("removed", length(idx), "saccades with preceeding fixation duration >2000ms"))
-	
+
 	# remove saccades with less than 5 samples
 	idx <- sapply(saccades, function(x){nrow(x)<5})
-	idx <- which(idx)
-	saccades <- saccades[-idx]
-	durations <- durations[-idx]
+	idx <- which(idx==1)
+	if (length(idx)>0){
+		saccades <- saccades[-idx]
+		durations <- durations[-idx]
+	}
 	print(paste("removed", length(idx), "saccades with less than 5 samples"))
 	print('***************************************************************')
 
@@ -164,8 +172,6 @@ NormaliseSaccade <- function(saccade)
 	return(saccade)
 }
 
-
-
 CurvatureStats <- function(saccade)
 {
 	max_c <- max(abs(saccade$Y))
@@ -176,12 +182,17 @@ CurvatureStats <- function(saccade)
 	quad_c <- as.numeric(abs(qfit$coefficients[3]))
 	quad_R2<- as.numeric(summary(qfit)$r.squared)
 
+	cfit    <- lm(Y~X+I(X^2)+I(X^3), saccade)
+	cubic_R2 <- as.numeric(summary(cfit)$r.squared)
+
 	return(data.frame(
-		trlNumber=saccade$trlNumber[1],
-		saccNumber=saccade$saccNumber[1],
+		person=saccade$Person[1],
+		trlNum=saccade$TrialIndex[1],
+		saccNum=saccade$SaccNumber[1],
 		max_curvature=max_c, 
 		area_curvature=area_c,
 		quad_curvature=quad_c,
-		quad_R2 = quad_R2
+		quad_R2 = quad_R2,
+		cube_R2 = cubic_R2
 		)) 
 }
