@@ -46,11 +46,14 @@ saccDF <- do.call(rbind.data.frame, saccadesNormalised)
 rm(saccades)
 names(saccDF) = c("person", "trlNum", "sampleTime", "x", "y", "saccNum")
 
-#get curvature statistics
+# get curvature statistics
 curve <-lapply(saccadesNormalised, FUN=CurvatureStats)
 curve <- do.call(rbind.data.frame, curve)
 saccStats <- merge(saccStats, curve)
 rm(saccadesNormalised, curve)
+
+
+
 	
 plt <- ggplot(filter(saccDF, person==1), aes(x=x, y=y)) + geom_point()
 plt <- plt + geom_text(data=filter(saccStats, person==1), aes(x=0,y=0, label=round(quad_R2,2)))
@@ -81,6 +84,24 @@ mu.mean <- apply(mu, 2, mean)
 mu.HPDI <- apply(mu, 2, HPDI, prob=0.89)
 lines(r.seq, mu.mean)
 shade(mu.HPDI, r.seq)
+
+
+plt <- ggplot(filter(saccStats, quad_R2>0.8), aes(x=theta, y=quad_curvature))
+plt <- plt + geom_point() + geom_smooth() + coord_polar(theta = "x")
+plt
+
+m <- map(
+	alist(
+		quad_R2 ~ dnorm(mu, sigma) ,
+		mu <- intrcpt + beta * sqrt(dc2) + beta2*r.log + beta3 * sqrt(dc2)*r.log,
+		intrcpt ~ dnorm(0,1),
+		beta ~ dnorm(0,1),
+		beta2 ~ dnorm(0,1),
+		beta3 ~ dnorm(0,1),
+		sigma ~ dunif(0,10)
+		),
+	data=saccStats)
+
 
 
 curve.sim <- sim(m, data=data.frame(r.log=r.seq), n=1e4)

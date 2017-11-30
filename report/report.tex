@@ -1,0 +1,78 @@
+\documentclass[a4paper, oneside, 11pt, onecolumn]{article}
+
+
+\usepackage{graphicx}
+\usepackage{subfig}
+\usepackage[round, comma, sort&compress, longnamesfirst]{natbib} 
+\usepackage[left=2cm,top=3cm,right=1.5cm,bottom=2cm,bindingoffset=0.5cm]{geometry}
+\usepackage{enumerate}
+\usepackage{fancyhdr}
+\pagestyle{fancy}
+\fancyhead{}
+\fancyfoot{}
+\fancyfoot[L]{\textit{Tech report}}
+ \fancyhead[L]{\textit{Clarke \& Foulsham (20xx)}}
+\renewcommand{\headrulewidth}{0.8pt}
+\renewcommand{\footrulewidth}{0.8pt}
+\setlength\headheight{14pt}
+\fancyfoot[RO] {\thepage}
+\usepackage{authblk}
+%%%%%%%%%%%%
+
+\begin{document}
+
+\title{Curvy Saccades}
+
+\author{A. D. F. Clarke\thanks{a.clarke@essex.ac.uk} \ and The only and only Tom Foulsham\thanks{foulsham@essex.ac.uk}}
+\affil{School of Psychology, University of Essex, UK}
+
+
+
+\maketitle
+
+\begin{abstract}
+Lets look at saccadic curvature in in eye movements made while viewing photographs
+\end{abstract}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{Introduction}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{Methods}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+\subsection{Stimuli}
+
+\subsection{Participants}
+
+\subsection{Paradigm}
+
+\subsection{Pre-processing}
+
+Saccades were parsed using the Eyelink and Nystrom filters. The data was cleaned by stepping through the following steps:
+
+\begin{itemize}
+\item The initial fixation from every scan-path was removed (1058 saccades).
+\item Saccades containing samples that fell outside image boundary  (256 saccades).
+\item Preceding fixation with duration greater than 2000ms (1480 saccades).
+\item Preceding fixation with duration less than 50ms (69 saccades)\footnote{Remember to check why a small number of fixations have 0ms duration???}.
+\item Saccades with fewer than 10 samples (0 saccades).
+\end{itemize}
+
+This left us with a total of 14,400 saccades with 
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{Methods}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{Discussion}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+\end{document}

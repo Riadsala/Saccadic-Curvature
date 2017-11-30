@@ -105,14 +105,20 @@ CleanData <- function(saccades, duratations)
 	durations <- durations[-idx]
 	print(paste("removed", length(idx), "saccades with preceeding fixation duration >2000ms"))
 
+	# remove saccades that take place after a really short fixation!
+	idx <- which(durations<50)
+	saccades <- saccades[-idx]
+	durations <- durations[-idx]
+	print(paste("removed", length(idx), "saccades with preceeding fixation duration <50ms"))
+
 	# remove saccades with less than 5 samples
-	idx <- sapply(saccades, function(x){nrow(x)<5})
+	idx <- sapply(saccades, function(x){nrow(x)<10})
 	idx <- which(idx==1)
 	if (length(idx)>0){
 		saccades <- saccades[-idx]
 		durations <- durations[-idx]
 	}
-	print(paste("removed", length(idx), "saccades with less than 5 samples"))
+	print(paste("removed", length(idx), "saccades with less than 10 samples"))
 	print('***************************************************************')
 
 	return(list(saccades, durations))
@@ -140,8 +146,11 @@ GetSaccadeStatistics <- function(saccade)
 		person = saccade$Person[1],
 		trlNum = saccade$TrialIndex[1],
 		saccNum = saccade$SaccNumber[1],
-		x1=x1, y1=y1, 
-		r=r, theta=theta, 
+		x1 = x1 - 1024/2, 
+		y1 = y1 - 768/2, 
+		dc2 = x1^2 + y1^2,
+		r = r, 
+		theta=theta, 
 		nSample=nSamples, 
 		saccDur=saccDur))
 }
@@ -195,4 +204,33 @@ CurvatureStats <- function(saccade)
 		quad_R2 = quad_R2,
 		cube_R2 = cubic_R2
 		)) 
+}
+
+BayesCurve <- function()
+{
+	saccade <- saccadesNormalised[[1]]
+curveModel3 <- map(
+	alist(
+		Y ~ dnorm(mu, sigma),
+		mu <- c + b1*X + b2*I(X^2) + b3*I(X^3),
+		c ~ dnorm(0,0.5),
+		b1 ~ dnorm(0,0.5),
+		b2 ~ dnorm(0,0.5),
+		b3 ~ dnorm(0,0.5),
+		sigma ~dunif(0,10)
+		),
+	data=saccade) 
+
+curveModel2 <- map(
+	alist(
+		Y ~ dnorm(mu, sigma),
+		mu <- c + b1*X + b2*I(X^2),
+		c ~ dnorm(0,0.5),
+		b1 ~ dnorm(0,0.5),
+		b2 ~ dnorm(0,0.5),	
+		sigma ~dunif(0,10)
+		),
+	data=saccade) 
+
+compare(curveModel2, curveModel3)
 }
