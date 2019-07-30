@@ -1,10 +1,10 @@
-library(dplyr)
+library(tidyverse)
 
 SaccDFtoList <- function(saccDF, alg, fl)
 {
 	# first get observer number
-	m <- regexpr('[0-9]+', fl)
-	saccDF$Person <- regmatches(fl, m)
+	m <- regexpr('[lr][0-9]+', fl)
+	saccDF$person <- regmatches(fl, m)
 	rm(m)
 
 	# take samples and split into a list of saccades
@@ -21,7 +21,7 @@ SaccDFtoList <- function(saccDF, alg, fl)
 	}
 
 	# now get extract saccade
-	saccDF <- select(saccDF, Person, TrialIndex, SampleTime, X, Y)
+	saccDF <- select(saccDF, person, TrialIndex, SampleTime, X, Y)
 	sacList <- vector('list', length(sacBoundaries)/2)
 
 	saccDF$SaccNumber <- 0
@@ -29,6 +29,7 @@ SaccDFtoList <- function(saccDF, alg, fl)
 	saccCtr <- 0 # overall saccade coutner
 	saccN   <- 0 # counts saccades per trial
 	currentTrl <- 0;
+
 	for (ii in seq(1, length(sacBoundaries), 2))
 	{
 		saccCtr <- saccCtr + 1
@@ -46,11 +47,14 @@ SaccDFtoList <- function(saccDF, alg, fl)
 		saccDF$SaccNumber[idx] <- saccN
 		sacList[[saccCtr]] <- rbind(saccDF[(sacBoundaries[ii]+1):sacBoundaries[ii+1],])
 		row.names(sacList[[saccCtr]]) = NULL
+		sacList[[saccCtr]]$SampleTime <-  sacList[[saccCtr]]$SampleTime - sacList[[saccCtr]]$SampleTime[1] 
 	}
 
 	# names(sacList) <- paste("trl", trl, "-sacc", 1:length(sacList), sep="")
 	return(sacList)
 }
+
+
 
 GetFixDur <- function(saccDF, alg)
 {
@@ -67,7 +71,7 @@ GetFixDur <- function(saccDF, alg)
 		sacBoundaries <- sacBoundaries[-length(sacBoundaries)]
 	}
 
-	# first, get preceeding fixation duration
+	# first, get preceding fixation duration
 	fixDur <- vector('numeric', length(sacBoundaries)/2)
 	fixCtr <- 0
 	for (ii in seq(1, length(sacBoundaries)-2, 2))
@@ -83,6 +87,8 @@ GetFixDur <- function(saccDF, alg)
 
 CleanData <- function(saccades, duratations)
 {
+	print(paste("We have ", length(saccades), " saccades before cleaning"))
+	before_clean <- length(saccades)
 	print('***************************************************************')
 
 	# remove 1st saccades
@@ -103,13 +109,13 @@ CleanData <- function(saccades, duratations)
 	idx <- which(durations>2000)
 	saccades <- saccades[-idx]
 	durations <- durations[-idx]
-	print(paste("removed", length(idx), "saccades with preceeding fixation duration >2000ms"))
+	print(paste("removed", length(idx), "saccades with preceding fixation duration >2000ms"))
 
 	# remove saccades that take place after a really short fixation!
 	idx <- which(durations<50)
 	saccades <- saccades[-idx]
 	durations <- durations[-idx]
-	print(paste("removed", length(idx), "saccades with preceeding fixation duration <50ms"))
+	print(paste("removed", length(idx), "saccades with preceding fixation duration <50ms"))
 
 	# remove saccades with less than 5 samples
 	idx <- sapply(saccades, function(x){nrow(x)<10})
@@ -120,7 +126,9 @@ CleanData <- function(saccades, duratations)
 	}
 	print(paste("removed", length(idx), "saccades with less than 10 samples"))
 	print('***************************************************************')
-
+	print(paste("We have ", length(saccades), " saccades after cleaning"))
+	after_clean <- length(saccades)
+	print(paste("We removed ", round(100 - 100*after_clean/before_clean), "% of saccades"))
 	return(list(saccades, durations))
 
 }
@@ -142,13 +150,16 @@ GetSaccadeStatistics <- function(saccade)
 
 	nSamples = nrow(saccade)
 	saccDur = t2 - t1
-	return(data.frame(
-		person = saccade$Person[1],
+	return(tibble(
+		person = saccade$person[1],
 		trlNum = saccade$TrialIndex[1],
 		saccNum = saccade$SaccNumber[1],
 		x1 = x1 - 1024/2, 
 		y1 = y1 - 768/2, 
-		dc2 = x1^2 + y1^2,
+		x2 = x2 - 1024/2,
+		y2 = y1 - 768/2,  
+		dc12 = x1^2 + y1^2,
+		dc22 = x2^2 + y2^2,
 		r = r, 
 		theta=theta, 
 		nSample=nSamples, 
@@ -176,61 +187,56 @@ NormaliseSaccade <- function(saccade)
 		yn <- -yn
 	}
 	# output!!
-	saccade$X <- xn
-	saccade$Y <- yn
+	saccade %>% 
+		rename(
+			trial = "TrialIndex", 
+			n = "SaccNumber",
+			x = "X", y = "Y",
+			t = "SampleTime") %>%
+		mutate(
+			xn = xn, yn = yn, tn = t/max(t)) %>%
+		select(person, trial, n, t, tn, x, y, xn, yn) -> saccade
+	# saccade$t <- saccade$SampleTime - saccade$SampleTime[1]
 	return(saccade)
 }
 
 CurvatureStats <- function(saccade)
 {
-	max_c <- max(abs(saccade$Y))
-	area_c <- sum(abs(saccade$Y))
+	
+	max_c <- max(abs(saccade$yn))
+	area_c <- sum(abs(saccade$yn))
+
+	# linear 
+	lfit    <- lm(yn~xn, saccade)
+	linear_R2 <- as.numeric(summary(lfit)$r.squared)
+
+	# linear parameterised by time
+	lfit_x    <- lm(xn ~ tn, saccade)
+	linear_x_R2 <- as.numeric(summary(lfit_x)$r.squared)
+
+	lfit_y    <- lm(yn ~ tn, saccade)
+	linear_y_R2 <- as.numeric(summary(lfit_y)$r.squared)
 
 	# quadratic
-	qfit   <- lm(Y~X+I(X^2), saccade)
+	qfit   <- lm(yn~tn+I(tn^2), saccade)
 	quad_c <- as.numeric(abs(qfit$coefficients[3]))
 	quad_R2<- as.numeric(summary(qfit)$r.squared)
 
-	cfit    <- lm(Y~X+I(X^2)+I(X^3), saccade)
+	# cubic
+	cfit    <- lm(y~tn+I(tn^2)+I(tn^3), saccade)
 	cubic_R2 <- as.numeric(summary(cfit)$r.squared)
 
-	return(data.frame(
-		person=saccade$Person[1],
-		trlNum=saccade$TrialIndex[1],
-		saccNum=saccade$SaccNumber[1],
+	return(tibble(
+		person=saccade$person[1],
+		trlNum=saccade$trial[1],
+		saccNum=saccade$n[1],
 		max_curvature=max_c, 
 		area_curvature=area_c,
 		quad_curvature=quad_c,
+		line_R2 = linear_R2,
+		line_x_R2 = linear_x_R2,
+		line_y_R2 = linear_y_R2,		
 		quad_R2 = quad_R2,
 		cube_R2 = cubic_R2
 		)) 
-}
-
-BayesCurve <- function()
-{
-	saccade <- saccadesNormalised[[1]]
-curveModel3 <- map(
-	alist(
-		Y ~ dnorm(mu, sigma),
-		mu <- c + b1*X + b2*I(X^2) + b3*I(X^3),
-		c ~ dnorm(0,0.5),
-		b1 ~ dnorm(0,0.5),
-		b2 ~ dnorm(0,0.5),
-		b3 ~ dnorm(0,0.5),
-		sigma ~dunif(0,10)
-		),
-	data=saccade) 
-
-curveModel2 <- map(
-	alist(
-		Y ~ dnorm(mu, sigma),
-		mu <- c + b1*X + b2*I(X^2),
-		c ~ dnorm(0,0.5),
-		b1 ~ dnorm(0,0.5),
-		b2 ~ dnorm(0,0.5),	
-		sigma ~dunif(0,10)
-		),
-	data=saccade) 
-
-compare(curveModel2, curveModel3)
 }
