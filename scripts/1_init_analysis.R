@@ -51,9 +51,9 @@ alg = "eyelink"
 	rm(output)
 
 	# get basic saccade statistics
-	saccStats <- lapply(saccades, FUN=GetSaccadeStatistics)
-	saccStats <- do.call(rbind.data.frame, saccStats)
-	saccStats$prevFixDur <- durations
+	sacc_stats <- lapply(saccades, FUN=GetSaccadeStatistics)
+	sacc_stats <- do.call(rbind.data.frame, sacc_stats)
+	sacc_stats$prevFixDur <- durations
 	rm(durations)
 
 	# normalise saccades to [-1,0] -> [1,0]
@@ -63,38 +63,20 @@ alg = "eyelink"
 	
 	# get curvature statistics
 	curve <-map_df(saccades, CurvatureStats)
-	saccStats <- merge(saccStats, curve)	
+	sacc_stats <- merge(sacc_stats, curve)	
 	rm(curve)
 
-	saccStats <- as_tibble(saccStats)
+	sacc_stats <- as_tibble(sacc_stats)
 	
 	# now remove short saccades
 	print('')
-	print(paste("Removing a further", round(100 * nrow(filter(saccStats, r <= 32))/nrow(saccStats)), "% of the saccades for being too short (<1vd)"))
-	saccStats <- filter(saccStats, r > 32)
+	print(paste("Removing a further", round(100 * nrow(filter(sacc_stats, r <= 32))/nrow(sacc_stats)), "% of the saccades for being too short (<0.5vd)"))
+	sacc_stats <- filter(sacc_stats, r > 16)
 
-	# check range of amplitude
-	ggplot(saccStats, aes(x = r)) + geom_histogram(bins = 200)
-	ggsave(paste("../plots/sacc_amp_", alg, ".pdf", sep = ""), width = 8, height = 3)
-
-
-	ggplot(saccStats, aes(x = quad_R2)) + geom_histogram(bins = 50)
-	ggsave(paste("../plots/quad_R2_", alg, ".pdf", sep = ""), width = 4, height = 3)
-
-	ggplot(saccStats, aes(x = line_R2)) + geom_histogram(bins = 50)
-	ggsave(paste("../plots/line_R2_", alg, ".pdf", sep = ""), width = 4, height = 3)
-
-
-	ggplot(saccStats, aes(x = log(prevFixDur))) + geom_histogram(bins = 50)
-	ggsave(paste("../plots/prev_fix_dir_R2_", alg, ".pdf", sep = ""), width = 4, height = 3)
-
-	print('')
-
-	print(paste(round(100 * mean(saccStats$quad_R2 > 0.5)), "% of saccades have quadratic R2 > 0.5", sep = ""))
 	print('')
 	print('')
 	print('')
 
-	write_csv(saccStats, paste("saccade_dat_", alg, ".csv", sep = ""))
+	write_csv(sacc_stats, paste("saccade_dat_", alg, ".csv", sep = ""))
 	
 # }

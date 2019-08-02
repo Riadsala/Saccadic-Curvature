@@ -4,16 +4,46 @@ library(tidyverse)
 alg = "eyelink"
 dat <- read_csv("saccade_dat_eyelink.csv")
 
+saccades <-	read_csv(paste("saccade_samples_dat_eyelink.csv", sep = ""))
 
-ggplot(dat, aes(x = line_R2)) + geom_histogram(bins = 50) +
-	ggtitle(paste("median R2 =", round(median(dat$line_R2), 3)))
-ggsave("../plots/linear_R2_hist.png", width = 4, height = 3)
-ggplot(dat, aes(x = quad_R2)) + geom_histogram(bins = 50) +
-	ggtitle(paste("median R2 =", round(median(dat$quad_R2), 3)))
-ggsave("../plots/quadratic_R2_hist.png", width = 4, height = 3)
-ggplot(dat, aes(x = cube_R2)) + geom_histogram(bins = 50) +
-	ggtitle(paste("median R2 =", round(median(dat$cube_R2), 3)))
-ggsave("../plots/cubic_R2_hist.png", width = 4, height = 3)
+# first, we will look at how linear y is 
+ggplot(dat, aes(x = line_y_R2)) + 
+	geom_histogram(fill = "slateblue", bins = 50) +
+	theme_minimal()
+ggsave("../plots/line_R2.pdf")
+
+# now look at how good the quadratic fits are
+
+ggplot(dat, aes(x = quad_R2)) + 
+	geom_histogram(fill = "slateblue", bins = 50) +
+	theme_minimal()
+ggsave("../plots/quad_R2.pdf")
+
+
+# give examples of poor quadratic fits
+
+dat %>% 
+	filter(quad_R2 < 0.5) %>%
+	sample_n(10) %>%
+	mutate(key = paste(person, trlNum, saccNum)) -> ss
+
+saccades %>%
+	mutate(key = paste(person, trial, n)) %>%
+	filter(key %in% ss$key) %>%
+	ggplot(aes(x = x, y = y, colour = key)) + geom_path() + 
+		theme_bw() +
+		theme(legend.position = "none", panel.grid = element_blank()) +
+		xlim(c(1, 1024)) + ylim(c(1, 768)) 
+ggsave("../plots/bad_quadratic_fits.png")
+
+
+	saccades %>%
+		mutate(key = paste(person, trial, n)) %>%
+		filter(key %in% ss$key) %>%
+		ggplot(aes(x = xn, y = yn, colour = key)) + geom_path() + 
+			theme_bw() +
+			theme(legend.position = "none", panel.grid = element_blank()) 
+	ggsave("../plots/bad_quadratic_fits_m.png")
 
 
 # how do the various curvature measures compare?
@@ -37,7 +67,6 @@ ggplot(filter(dat, quad_R2 > 0.8), aes(x = log(r), y = log(quad_curvature))) +
 ggsave("../plots/quad_curve_amp.png", width = 4, height = 3)
 
 cor.test(log(dat$quad_curvature) ,log(dat$r))
-
 
 aggregate(data = dat, quad_R2 ~ person, FUN = median)
 

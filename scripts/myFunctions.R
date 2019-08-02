@@ -1,5 +1,7 @@
 library(tidyverse)
 
+min_num_samples <- 20 
+
 SaccDFtoList <- function(saccDF, alg, fl)
 {
 	# first get observer number
@@ -55,7 +57,6 @@ SaccDFtoList <- function(saccDF, alg, fl)
 }
 
 
-
 GetFixDur <- function(saccDF, alg)
 {
 	# take samples and split into a list of saccades
@@ -73,7 +74,7 @@ GetFixDur <- function(saccDF, alg)
 
 	# first, get preceding fixation duration
 	fixDur <- vector('numeric', length(sacBoundaries)/2)
-	fixCtr <- 0
+	fixCtr <- 1
 	for (ii in seq(1, length(sacBoundaries)-2, 2))
 	{
 		fixCtr <- fixCtr + 1
@@ -118,13 +119,13 @@ CleanData <- function(saccades, duratations)
 	print(paste("removed", length(idx), "saccades with preceding fixation duration <50ms"))
 
 	# remove saccades with less than 5 samples
-	idx <- sapply(saccades, function(x){nrow(x)<10})
+	idx <- sapply(saccades, function(x){nrow(x)<min_num_samples})
 	idx <- which(idx==1)
 	if (length(idx)>0){
 		saccades <- saccades[-idx]
 		durations <- durations[-idx]
 	}
-	print(paste("removed", length(idx), "saccades with less than 10 samples"))
+	print(paste("removed", length(idx), "saccades with less than", min_num_samples, "samples"))
 	print('***************************************************************')
 	print(paste("We have ", length(saccades), " saccades after cleaning"))
 	after_clean <- length(saccades)
@@ -161,9 +162,9 @@ GetSaccadeStatistics <- function(saccade)
 		dc12 = x1^2 + y1^2,
 		dc22 = x2^2 + y2^2,
 		r = r, 
-		theta=theta, 
-		nSample=nSamples, 
-		saccDur=saccDur))
+		theta = 	theta, 
+		nSample = nSamples, 
+		saccDur = saccDur))
 }
 
 NormaliseSaccade <- function(saccade)
@@ -186,6 +187,7 @@ NormaliseSaccade <- function(saccade)
 	{
 		yn <- -yn
 	}
+
 	# output!!
 	saccade %>% 
 		rename(
@@ -205,10 +207,6 @@ CurvatureStats <- function(saccade)
 	
 	max_c <- max(abs(saccade$yn))
 	area_c <- sum(abs(saccade$yn))
-
-	# linear 
-	lfit    <- lm(yn~xn, saccade)
-	linear_R2 <- as.numeric(summary(lfit)$r.squared)
 
 	# linear parameterised by time
 	lfit_x    <- lm(xn ~ tn, saccade)
@@ -232,8 +230,7 @@ CurvatureStats <- function(saccade)
 		saccNum=saccade$n[1],
 		max_curvature=max_c, 
 		area_curvature=area_c,
-		quad_curvature=quad_c,
-		line_R2 = linear_R2,
+		quad_curvature=quad_c,		
 		line_x_R2 = linear_x_R2,
 		line_y_R2 = linear_y_R2,		
 		quad_R2 = quad_R2,
