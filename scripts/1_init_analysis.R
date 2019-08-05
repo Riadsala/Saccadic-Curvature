@@ -3,8 +3,8 @@ library(tidyverse)
 source("myFunctions.R")
 
 
-# for (alg in c("eyelink", "nystrom")) {
-alg = "eyelink"
+for (alg in c("eyelink", "nystrom")) {
+# alg = "eyelink"
 
 	print('***************************************************************')
 	print('***************************************************************')
@@ -57,10 +57,8 @@ alg = "eyelink"
 	rm(durations)
 
 	# normalise saccades to [-1,0] -> [1,0]
-	saccades = lapply(saccades, NormaliseSaccade)
+	saccades =lapply(saccades, NormaliseSaccade)
 
-	write_csv(bind_rows(saccades), paste("saccade_samples_dat_", alg, ".csv", sep = ""))
-	
 	# get curvature statistics
 	curve <-map_df(saccades, CurvatureStats)
 	sacc_stats <- merge(sacc_stats, curve)	
@@ -68,15 +66,45 @@ alg = "eyelink"
 
 	sacc_stats <- as_tibble(sacc_stats)
 	
-	# now remove short saccades
-	print('')
-	print(paste("Removing a further", round(100 * nrow(filter(sacc_stats, r <= 32))/nrow(sacc_stats)), "% of the saccades for being too short (<0.5vd)"))
-	sacc_stats <- filter(sacc_stats, r > 16)
+	saccades <- bind_rows(saccades)
+	write_csv(saccades, paste("saccade_samples_dat_", alg, ".csv", sep = ""))
+	
 
+	# now look at x(t)
 	print('')
+	ggplot(sacc_stats, aes(x = line_x_R2)) + 
+		geom_histogram(bins = 100, fill = "slateblue") +
+		theme_minimal() 
+	print('')
+
+	line_x_R2_thresh = 0.9
+	print(paste(round(100*mean(sacc_stats$line_x_R2 > line_x_R2_thresh),2), "% of saccades have good x fit"))
+
+	# give some examples of the type of eye movement we are removing!
+
+	sacc_stats %>% 
+		filter(line_x_R2 < 0.5) %>%
+		sample_n(5) %>%
+		mutate(key = paste(person, trlNum, saccNum)) -> ss
+
+	saccades %>%
+		mutate(key = paste(person, trial, n)) %>%
+		filter(key %in% ss$key) %>%
+		ggplot(aes(x = x, y = y, colour = key)) + geom_path() + 
+			theme_bw() +
+			theme(legend.position = "none", panel.grid = element_blank()) +
+			xlim(c(1, 1024)) + ylim(c(1, 768)) 
+	ggsave(paste("../plots/bad_linear_fits_", alg, ".png", sep = ""))
+
+	ggplot(sacc_stats, aes(x = line_x_R2)) + geom_histogram(bins = 100)
+	ggsave(paste("../plots/x_linear_fits_", alg, ".png", sep = ""))
+	
+	sacc_stats <- filter(sacc_stats, line_x_R2 > 0.9)
+
 	print('')
 	print('')
 
 	write_csv(sacc_stats, paste("saccade_dat_", alg, ".csv", sep = ""))
 	
-# }
+
+ }
