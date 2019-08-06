@@ -158,7 +158,7 @@ GetSaccadeStatistics <- function(saccade)
 		x1 = x1 - 1024/2, 
 		y1 = y1 - 768/2, 
 		x2 = x2 - 1024/2,
-		y2 = y1 - 768/2,  
+		y2 = y2 - 768/2,  
 		dc12 = x1^2 + y1^2,
 		dc22 = x2^2 + y2^2,
 		r = r, 
