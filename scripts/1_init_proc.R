@@ -2,6 +2,8 @@ library(tidyverse)
 
 source("myFunctions.R")
 
+thresh_line_x <- 0.75
+
 
 for (alg in c("eyelink", "nystrom")) {
 # alg = "eyelink"
@@ -74,6 +76,10 @@ for (alg in c("eyelink", "nystrom")) {
 	sacc_stats <- filter(sacc_stats, r > 16)
 
 	print('')
+	print(paste("Removing a further", round(100 * nrow(filter(sacc_stats, line_x_R2 < thresh_line_x))/nrow(sacc_stats)), "% due to poor linear x R2"))
+	sacc_stats <- filter(sacc_stats, line_x_R2 >= thresh_line_x)
+
+
 	print('')
 	print('')
 
